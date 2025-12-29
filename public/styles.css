@@ -645,6 +645,8 @@ body {
     font-weight: 600;
     color: var(--money-green-light);
     letter-spacing: 2px;
+    order: -1;
+    margin-bottom: 0.5rem;
 }
 
 /* Wheel Wrapper */

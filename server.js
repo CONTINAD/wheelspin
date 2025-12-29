@@ -11,7 +11,7 @@ const pumpfun = require('./services/pumpfun');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
-const SPIN_INTERVAL_MS = 60000; // 1 minute
+const SPIN_INTERVAL_MS = 120000; // 2 minutes
 const TOKEN_MINT_ADDRESS = process.env.TOKEN_MINT || '6MjfcbDGeCe4AapDP2uUnPBrMKKKejeXr8UCArBC92vg';
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT || 'https://mainnet.helius-rpc.com/?api-key=ae211108-bdbf-40af-90e2-c5418e3f62d3';
 
