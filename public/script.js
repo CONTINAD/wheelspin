@@ -248,6 +248,11 @@ function handleSpinComplete(data) {
     if (data.nextSpin) {
         updateCountdown(data.nextSpin);
     }
+
+    // Update winner modal with distribution info if available
+    if (data.distribution && data.distribution.distributed > 0) {
+        updateWinnerWithDistribution(data.distribution);
+    }
 }
 
 function handleCountdown(data) {
@@ -359,10 +364,20 @@ function updateSpinsToday() {
 
 // Timer for auto-closing winner announcement
 let winnerAutoCloseTimer = null;
+let currentWinnerAddress = null;
 
 function showWinnerAnnouncement(winner) {
+    currentWinnerAddress = winner.address;
     elements.winnerAddress.textContent = winner.displayAddress;
     elements.winnerAmount.textContent = `${winner.percentage.toFixed(2)}% of supply`;
+
+    // Reset prize display
+    const prizeElement = document.getElementById('winnerPrize');
+    if (prizeElement) {
+        prizeElement.textContent = 'Claiming...';
+        prizeElement.onclick = null;
+    }
+
     elements.winnerAnnouncement.classList.add('show');
 
     // Clear any existing timer
@@ -375,6 +390,27 @@ function showWinnerAnnouncement(winner) {
         elements.winnerAnnouncement.classList.remove('show');
         winnerAutoCloseTimer = null;
     }, 30000);
+}
+
+function updateWinnerWithDistribution(distribution) {
+    const prizeElement = document.getElementById('winnerPrize');
+    if (!prizeElement) return;
+
+    if (distribution.distributed > 0) {
+        const solAmount = distribution.distributed.toFixed(4);
+        prizeElement.innerHTML = `<span style="color: var(--neon-green); text-shadow: var(--glow-green);">${solAmount} SOL 🎉</span>`;
+
+        // Make clickable if we have a tx link
+        if (distribution.transferTxUrl) {
+            prizeElement.style.cursor = 'pointer';
+            prizeElement.onclick = () => window.open(distribution.transferTxUrl, '_blank');
+            prizeElement.title = 'Click to view transaction';
+        }
+
+        showToast(`🎉 ${solAmount} SOL sent to winner!`);
+    } else {
+        prizeElement.textContent = 'No fees available';
+    }
 }
 
 function closeWinnerAnnouncement() {

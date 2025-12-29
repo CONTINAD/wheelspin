@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -6,12 +7,13 @@ const path = require('path');
 
 const { getTokenHolders, processHoldersForWheel } = require('./services/helius');
 const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin } = require('./services/wheelLogic');
+const pumpfun = require('./services/pumpfun');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
 const SPIN_INTERVAL_MS = 60000; // 1 minute
-// Token mint address for The Wheel
 const TOKEN_MINT_ADDRESS = process.env.TOKEN_MINT || '6MjfcbDGeCe4AapDP2uUnPBrMKKKejeXr8UCArBC92vg';
+const RPC_ENDPOINT = process.env.RPC_ENDPOINT || 'https://mainnet.helius-rpc.com/?api-key=ae211108-bdbf-40af-90e2-c5418e3f62d3';
 
 // State
 let currentHolders = [];
@@ -19,6 +21,8 @@ let currentWheelData = { segments: [], totalSupply: 0 };
 let lastSpinTime = Date.now();
 let isSpinning = false;
 let lastWinner = null;
+let creatorBalance = 0;
+let feeClaimEnabled = false;
 
 // Initialize Express app
 const app = express();
@@ -42,7 +46,9 @@ wss.on('connection', (ws) => {
             lastWinner: lastWinner,
             history: getSpinHistory(10),
             nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS),
-            isSpinning: isSpinning
+            isSpinning: isSpinning,
+            creatorBalance: creatorBalance,
+            feeClaimEnabled: feeClaimEnabled
         }
     }));
 
@@ -66,7 +72,7 @@ app.get('/api/holders', async (req, res) => {
     try {
         res.json({
             success: true,
-            holders: currentHolders.slice(0, 100), // Return top 100 for API
+            holders: currentHolders.slice(0, 100),
             total: currentHolders.length
         });
     } catch (error) {
@@ -112,11 +118,42 @@ app.get('/api/status', (req, res) => {
         totalSupply: currentWheelData.totalSupply,
         lastSpinTime: new Date(lastSpinTime).toISOString(),
         nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS),
-        isSpinning: isSpinning
+        isSpinning: isSpinning,
+        creatorBalance: creatorBalance,
+        feeClaimEnabled: feeClaimEnabled,
+        creatorWallet: pumpfun.getCreatorPublicKey()
     });
 });
 
-// Spin logic
+// Fee claiming endpoints
+app.get('/api/balance', async (req, res) => {
+    if (!feeClaimEnabled) {
+        return res.json({ success: false, error: 'Fee claiming not configured' });
+    }
+
+    const result = await pumpfun.getCreatorBalance();
+    if (result.success) {
+        creatorBalance = result.balance;
+    }
+    res.json(result);
+});
+
+app.post('/api/claim-fees', async (req, res) => {
+    if (!feeClaimEnabled) {
+        return res.json({ success: false, error: 'Fee claiming not configured' });
+    }
+
+    const result = await pumpfun.claimCreatorFees();
+    if (result.success) {
+        const balanceResult = await pumpfun.getCreatorBalance();
+        if (balanceResult.success) {
+            creatorBalance = balanceResult.balance;
+        }
+    }
+    res.json(result);
+});
+
+// Spin logic with fee distribution
 async function performSpin() {
     if (currentWheelData.segments.length === 0) {
         throw new Error('No holders available for spin');
@@ -137,7 +174,7 @@ async function performSpin() {
 
     console.log(`[Spin] Winner: ${winner.displayAddress} (${winner.percentage.toFixed(2)}%)`);
 
-    // Broadcast spin result (frontend will animate)
+    // Broadcast spin result
     broadcast({
         type: 'spinResult',
         data: {
@@ -148,18 +185,42 @@ async function performSpin() {
         }
     });
 
-    // Wait for animation to complete before allowing next spin
-    setTimeout(() => {
+    // Handle fee distribution after animation
+    setTimeout(async () => {
+        let distributionResult = null;
+
+        // Try to claim and distribute fees if enabled
+        if (feeClaimEnabled && winner.address) {
+            console.log(`[Spin] Attempting to claim and distribute fees to winner: ${winner.address}`);
+            distributionResult = await pumpfun.claimAndDistribute(winner.address, 10);
+
+            if (distributionResult.success && distributionResult.distributed > 0) {
+                console.log(`[Spin] Distributed ${distributionResult.distributed} SOL to winner!`);
+            } else if (distributionResult.success) {
+                console.log(`[Spin] No fees available to distribute`);
+            } else {
+                console.log(`[Spin] Fee distribution failed: ${distributionResult.error}`);
+            }
+
+            // Update balance
+            const balanceResult = await pumpfun.getCreatorBalance();
+            if (balanceResult.success) {
+                creatorBalance = balanceResult.balance;
+            }
+        }
+
         isSpinning = false;
         broadcast({
             type: 'spinComplete',
             data: {
                 winner: winner,
                 history: getSpinHistory(10),
-                nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS)
+                nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS),
+                distribution: distributionResult,
+                creatorBalance: creatorBalance
             }
         });
-    }, 5000); // 5 second spin animation
+    }, 5500); // After spin animation
 
     return {
         winner: winner,
@@ -206,7 +267,7 @@ function startAutoSpin() {
     }, SPIN_INTERVAL_MS);
 }
 
-// Countdown broadcast (every second)
+// Countdown broadcast
 function startCountdownBroadcast() {
     setInterval(() => {
         if (!isSpinning) {
@@ -216,6 +277,28 @@ function startCountdownBroadcast() {
             });
         }
     }, 1000);
+}
+
+// Initialize PumpFun service
+function initializePumpFun() {
+    const privateKey = process.env.CREATOR_PRIVATE_KEY;
+
+    if (!privateKey || privateKey === 'your_base58_private_key_here') {
+        console.log('[PumpFun] No private key configured - fee claiming disabled');
+        console.log('[PumpFun] To enable, set CREATOR_PRIVATE_KEY in .env file');
+        return false;
+    }
+
+    const result = pumpfun.initialize(privateKey, RPC_ENDPOINT);
+
+    if (result.success) {
+        feeClaimEnabled = true;
+        console.log(`[PumpFun] Fee claiming enabled! Creator wallet: ${result.publicKey}`);
+        return true;
+    } else {
+        console.error(`[PumpFun] Failed to initialize: ${result.error}`);
+        return false;
+    }
 }
 
 // Start server
@@ -229,6 +312,18 @@ server.listen(PORT, async () => {
 ║  Spin Interval: ${SPIN_INTERVAL_MS / 1000} seconds              ║
 ╚═══════════════════════════════════════════════╝
     `);
+
+    // Initialize PumpFun fee claiming
+    initializePumpFun();
+
+    // Get initial balance if enabled
+    if (feeClaimEnabled) {
+        const balanceResult = await pumpfun.getCreatorBalance();
+        if (balanceResult.success) {
+            creatorBalance = balanceResult.balance;
+            console.log(`[PumpFun] Current creator balance: ${creatorBalance} SOL`);
+        }
+    }
 
     // Initial holder fetch
     await refreshHolders();
