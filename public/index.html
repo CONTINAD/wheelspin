@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="The Wheel - Token holders compete for creator fees. Spin to win every 60 seconds.">
+    <title>THE WHEEL | Spin to Win</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Background -->
+    <div class="bg-animation">
+        <div class="stars"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-wheel">
+                    <span class="wheel-emoji">🎰</span>
+                </div>
+                <div class="logo-text-container">
+                    <h1 class="logo-text">THE WHEEL</h1>
+                    <p class="logo-tagline">Spin • Win • Repeat</p>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Holders</span>
+                        <span class="stat-value" id="holderCount">--</span>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Supply</span>
+                        <span class="stat-value" id="totalSupply">--</span>
+                    </div>
+                </div>
+                <div class="stat-item live-indicator">
+                    <div class="stat-icon">🔴</div>
+                    <div class="stat-content">
+                        <span class="stat-label">Status</span>
+                        <span class="stat-value live-text">LIVE</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel - History -->
+            <aside class="history-panel glass-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span class="title-icon">🏆</span>
+                        Recent Winners
+                    </h2>
+                    <div class="panel-decoration"></div>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">
+                        <div class="empty-icon">⏳</div>
+                        <span>Waiting for first spin...</span>
+                    </div>
+                </div>
+                <div class="panel-footer">
+                    <div class="total-distributed">
+                        <span class="dist-label">Spins Today</span>
+                        <span class="dist-value" id="spinsToday">0</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center - The Wheel -->
+            <section class="wheel-section">
+                <!-- Live Badge -->
+                <div class="live-badge">
+                    <span class="live-dot"></span>
+                    <span>LIVE</span>
+                </div>
+
+                <!-- Countdown Timer -->
+                <div class="countdown-container">
+                    <div class="countdown-ring">
+                        <svg viewBox="0 0 100 100">
+                            <circle class="countdown-bg" cx="50" cy="50" r="45" />
+                            <circle class="countdown-progress" id="countdownCircle" cx="50" cy="50" r="45" />
+                        </svg>
+                        <div class="countdown-inner">
+                            <span class="countdown-value" id="countdownSeconds">60</span>
+                            <span class="countdown-unit">SEC</span>
+                        </div>
+                    </div>
+                    <div class="countdown-label">NEXT SPIN</div>
+                </div>
+
+                <!-- Wheel Container -->
+                <div class="wheel-wrapper">
+                    <div class="wheel-outer-ring"></div>
+                    <div class="wheel-container" id="wheelContainer">
+                        <div class="wheel-glow"></div>
+                        <div class="wheel-pointer">
+                            <div class="pointer-arrow"></div>
+                        </div>
+                        <div class="wheel-center">
+                            <div class="center-outer"></div>
+                            <div class="center-ring"></div>
+                            <div class="center-inner">
+                                <span class="center-text">🎯</span>
+                            </div>
+                        </div>
+                        <canvas id="wheelCanvas" width="600" height="600"></canvas>
+                    </div>
+                </div>
+
+                <!-- Spin Button -->
+                <button class="manual-spin-btn" id="manualSpinBtn">
+                    <span class="btn-text">⚡ FORCE SPIN</span>
+                    <span class="btn-shine"></span>
+                </button>
+
+                <!-- Winner Announcement -->
+                <div class="winner-announcement" id="winnerAnnouncement">
+                    <div class="winner-content">
+                        <div class="winner-badge">👑</div>
+                        <div class="winner-title">
+                            <span class="winner-label">WINNER!</span>
+                        </div>
+                        <div class="winner-address-container">
+                            <div class="winner-address" id="winnerAddress">--</div>
+                        </div>
+                        <div class="winner-stats">
+                            <div class="winner-stat">
+                                <span class="ws-label">Holdings</span>
+                                <span class="ws-value" id="winnerAmount">--</span>
+                            </div>
+                            <div class="winner-stat">
+                                <span class="ws-label">Prize</span>
+                                <span class="ws-value" id="winnerPrize">Creator Fees</span>
+                            </div>
+                        </div>
+                        <button class="winner-close" id="closeWinner">CONTINUE</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel - Top Holders -->
+            <aside class="holders-panel glass-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <span class="title-icon">💎</span>
+                        Top Holders
+                    </h2>
+                    <div class="panel-decoration"></div>
+                </div>
+                <div class="holders-list" id="holdersList">
+                    <div class="holders-empty">
+                        <div class="empty-icon">🔍</div>
+                        <span>Loading holders...</span>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- How It Works Section -->
+        <section class="how-it-works">
+            <h2 class="section-title">HOW IT WORKS</h2>
+            <div class="steps-container">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">🪙</div>
+                    <h3>HOLD TOKENS</h3>
+                    <p>More tokens = bigger slice of the wheel</p>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">🎡</div>
+                    <h3>WHEEL SPINS</h3>
+                    <p>Auto-spins every 60 seconds</p>
+                </div>
+                <div class="step-arrow">→</div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">💸</div>
+                    <h3>WIN FEES</h3>
+                    <p>Winner gets creator fees from trades</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="token-info">
+                    <span class="token-label">CONTRACT</span>
+                    <div class="token-address-wrapper">
+                        <span class="token-address" id="tokenAddress">Loading...</span>
+                        <button class="copy-btn" id="copyBtn" title="Copy Address">
+                            <span class="copy-icon">📋</span>
+                            <span class="copy-text">COPY</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="footer-branding">
+                    <span class="powered-by">Powered by Helius</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Audio -->
+    <audio id="spinSound" preload="auto"
+        src="https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3"></audio>
+    <audio id="winSound" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+    <audio id="tickSound" preload="auto"
+        src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
+
+    <script src="wheel.js"></script>
+    <script src="particles.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "the-wheel",
+  "version": "1.0.0",
+  "description": "The Wheel - PumpFun token wheel spinner that distributes creator fees to holders",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0",
+    "ws": "^8.14.2"
+  },
+  "keywords": ["solana", "pumpfun", "wheel", "crypto"],
+  "author": "",
+  "license": "MIT"
+}
