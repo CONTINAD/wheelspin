@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const path = require('path');
 
 const { getTokenHolders, processHoldersForWheel, getCreatedTokens } = require('./services/helius');
-const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin } = require('./services/wheelLogic');
+const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
 
 // Configuration
@@ -197,6 +197,8 @@ async function performSpin() {
 
             if (distributionResult.success && distributionResult.distributed > 0) {
                 console.log(`[Spin] Distributed ${distributionResult.distributed} SOL to winner!`);
+                // Update the history record with transaction info
+                updateLatestSpinDistribution(distributionResult);
             } else if (distributionResult.success) {
                 console.log(`[Spin] No fees available to distribute`);
             } else {

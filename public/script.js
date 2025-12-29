@@ -293,16 +293,27 @@ function updateHistory(history) {
         return;
     }
 
-    elements.historyList.innerHTML = history.map((item, index) => `
-        <div class="history-item ${index === 0 ? 'latest' : ''}">
+    elements.historyList.innerHTML = history.map((item, index) => {
+        const hasTx = item.solscanUrl && item.distribution > 0;
+        const prizeDisplay = item.distribution > 0
+            ? `<span class="history-prize">🎉 ${item.distribution.toFixed(4)} SOL</span>`
+            : '';
+        const txLink = hasTx
+            ? `<a href="${item.solscanUrl}" target="_blank" class="history-tx-link" title="View on Solscan">📜 TX</a>`
+            : '';
+
+        return `
+        <div class="history-item ${index === 0 ? 'latest' : ''}${hasTx ? ' has-tx' : ''}">
             <div class="history-rank">#${item.id}</div>
             <div class="history-address">${item.winner.displayAddress}</div>
             <div class="history-details">
                 <span class="history-amount">${item.winner.percentage.toFixed(2)}%</span>
+                ${prizeDisplay}
+                ${txLink}
                 <span class="history-time">${item.timestampReadable}</span>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function updateHoldersList(segments) {
@@ -343,7 +354,8 @@ function updateCountdown(data) {
     elements.countdownSeconds.textContent = seconds;
 
     // Update circular progress (283 is the circumference of the circle)
-    const progress = (seconds / 60) * 283;
+    // Using 120 seconds for 2 minute interval
+    const progress = (seconds / 120) * 283;
     if (elements.countdownCircle) {
         elements.countdownCircle.style.strokeDashoffset = 283 - progress;
     }

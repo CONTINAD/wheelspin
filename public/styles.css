@@ -397,7 +397,9 @@ body {
 
 .history-details {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
     margin-top: 0.4rem;
 }
 
@@ -408,9 +410,39 @@ body {
     font-weight: 600;
 }
 
+.history-prize {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: 600;
+    background: rgba(255, 215, 0, 0.15);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.history-tx-link {
+    font-size: 0.75rem;
+    color: var(--money-green);
+    text-decoration: none;
+    background: rgba(0, 200, 83, 0.2);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.history-tx-link:hover {
+    background: rgba(0, 200, 83, 0.4);
+    color: var(--text-white);
+}
+
+.history-item.has-tx {
+    border-color: var(--gold);
+}
+
 .history-time {
     font-size: 0.7rem;
     color: var(--text-muted);
+    margin-left: auto;
 }
 
 .panel-footer {

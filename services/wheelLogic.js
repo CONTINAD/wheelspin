@@ -79,7 +79,10 @@ function recordSpin(winner, timestamp = new Date()) {
             percentage: winner.percentage
         },
         timestamp: timestamp.toISOString(),
-        timestampReadable: formatTimestamp(timestamp)
+        timestampReadable: formatTimestamp(timestamp),
+        distribution: null, // Will be updated when fee distribution completes
+        txSignature: null,
+        solscanUrl: null
     };
 
     spinHistory.unshift(record);
@@ -90,6 +93,23 @@ function recordSpin(winner, timestamp = new Date()) {
     }
 
     return record;
+}
+
+/**
+ * Update the most recent spin with distribution info
+ */
+function updateLatestSpinDistribution(distribution) {
+    if (spinHistory.length === 0 || !distribution) return false;
+
+    const latestSpin = spinHistory[0];
+
+    if (distribution.distributed > 0) {
+        latestSpin.distribution = distribution.distributed;
+        latestSpin.txSignature = distribution.transferSignature || null;
+        latestSpin.solscanUrl = distribution.transferTxUrl || null;
+    }
+
+    return true;
 }
 
 /**
@@ -131,5 +151,6 @@ module.exports = {
     calculateWinningDegree,
     recordSpin,
     getSpinHistory,
-    getTimeUntilNextSpin
+    getTimeUntilNextSpin,
+    updateLatestSpinDistribution
 };
