@@ -5,15 +5,16 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 
-const { getTokenHolders, processHoldersForWheel } = require('./services/helius');
+const { getTokenHolders, processHoldersForWheel, getCreatedTokens } = require('./services/helius');
 const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
 const SPIN_INTERVAL_MS = 120000; // 2 minutes
-const TOKEN_MINT_ADDRESS = process.env.TOKEN_MINT || '6MjfcbDGeCe4AapDP2uUnPBrMKKKejeXr8UCArBC92vg';
+let TOKEN_MINT_ADDRESS = process.env.TOKEN_MINT || null; // Will auto-detect if not set
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT || 'https://mainnet.helius-rpc.com/?api-key=ae211108-bdbf-40af-90e2-c5418e3f62d3';
+
 
 // State
 let currentHolders = [];
@@ -286,7 +287,7 @@ function initializePumpFun() {
     if (!privateKey || privateKey === 'your_base58_private_key_here') {
         console.log('[PumpFun] No private key configured - fee claiming disabled');
         console.log('[PumpFun] To enable, set CREATOR_PRIVATE_KEY in .env file');
-        return false;
+        return { success: false };
     }
 
     const result = pumpfun.initialize(privateKey, RPC_ENDPOINT);
@@ -294,27 +295,59 @@ function initializePumpFun() {
     if (result.success) {
         feeClaimEnabled = true;
         console.log(`[PumpFun] Fee claiming enabled! Creator wallet: ${result.publicKey}`);
-        return true;
+        return { success: true, publicKey: result.publicKey };
     } else {
         console.error(`[PumpFun] Failed to initialize: ${result.error}`);
-        return false;
+        return { success: false };
+    }
+}
+
+// Auto-detect token created by wallet
+async function autoDetectToken(creatorPublicKey) {
+    console.log('[Server] Auto-detecting token from creator wallet...');
+
+    const result = await getCreatedTokens(creatorPublicKey);
+
+    if (result.success) {
+        console.log(`[Server] Found token: ${result.name} (${result.symbol})`);
+        console.log(`[Server] Token Mint: ${result.mint}`);
+        return result.mint;
+    } else {
+        console.log(`[Server] Could not auto-detect token: ${result.error}`);
+        console.log('[Server] Please set TOKEN_MINT in environment variables');
+        return null;
     }
 }
 
 // Start server
 server.listen(PORT, async () => {
     console.log(`
-╔═══════════════════════════════════════════════╗
-║           🎡 THE WHEEL SERVER 🎡              ║
-╠═══════════════════════════════════════════════╣
-║  Server running on: http://localhost:${PORT}     ║
-║  Token Mint: ${TOKEN_MINT_ADDRESS.slice(0, 20)}...       
-║  Spin Interval: ${SPIN_INTERVAL_MS / 1000} seconds              ║
-╚═══════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════╗
+║              🎡 $WHEEL SERVER 🎡                      ║
+╠═══════════════════════════════════════════════════════╣
+║  Server running on: http://localhost:${PORT}              ║
+║  Spin Interval: ${SPIN_INTERVAL_MS / 1000} seconds                          ║
+╚═══════════════════════════════════════════════════════╝
     `);
 
     // Initialize PumpFun fee claiming
-    initializePumpFun();
+    const pumpfunResult = initializePumpFun();
+
+    // Auto-detect token if not manually set
+    if (!TOKEN_MINT_ADDRESS && pumpfunResult.success && pumpfunResult.publicKey) {
+        const detectedMint = await autoDetectToken(pumpfunResult.publicKey);
+        if (detectedMint) {
+            TOKEN_MINT_ADDRESS = detectedMint;
+        } else {
+            console.error('[Server] No token detected and no TOKEN_MINT set. Exiting...');
+            process.exit(1);
+        }
+    } else if (!TOKEN_MINT_ADDRESS) {
+        console.error('[Server] No TOKEN_MINT set and no CREATOR_PRIVATE_KEY for auto-detect. Exiting...');
+        process.exit(1);
+    }
+
+    console.log(`[Server] Using Token: ${TOKEN_MINT_ADDRESS}`);
 
     // Get initial balance if enabled
     if (feeClaimEnabled) {
@@ -339,3 +372,4 @@ server.listen(PORT, async () => {
 });
 
 module.exports = app;
+

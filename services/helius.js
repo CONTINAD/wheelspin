@@ -149,8 +149,81 @@ function generateColor(index, total) {
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
+/**
+ * Find tokens created by a specific wallet address
+ * Uses Helius DAS API getAssetsByCreator
+ */
+async function getCreatedTokens(creatorAddress) {
+    console.log(`[Helius] Looking up tokens created by: ${creatorAddress}`);
+
+    try {
+        const response = await fetch(HELIUS_RPC_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: '1',
+                method: 'getAssetsByCreator',
+                params: {
+                    creatorAddress: creatorAddress,
+                    onlyVerified: false,
+                    page: 1,
+                    limit: 100
+                }
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(`RPC error: ${data.error.message}`);
+        }
+
+        const assets = data.result?.items || [];
+
+        // Filter for fungible tokens (not NFTs)
+        const tokens = assets.filter(asset =>
+            asset.interface === 'FungibleToken' ||
+            asset.interface === 'FungibleAsset' ||
+            (asset.content?.metadata?.token_standard === 'Fungible')
+        );
+
+        console.log(`[Helius] Found ${tokens.length} tokens created by wallet`);
+
+        // Return the most recent token (likely the one they want)
+        if (tokens.length > 0) {
+            // Sort by creation time if available, or just take first
+            const token = tokens[0];
+            return {
+                success: true,
+                mint: token.id,
+                name: token.content?.metadata?.name || 'Unknown Token',
+                symbol: token.content?.metadata?.symbol || 'TOKEN'
+            };
+        }
+
+        // If no fungible tokens found, check if any assets exist
+        if (assets.length > 0) {
+            console.log(`[Helius] Found ${assets.length} assets but no fungible tokens`);
+        }
+
+        return { success: false, error: 'No tokens found for this creator wallet' };
+
+    } catch (error) {
+        console.error('[Helius] Error fetching created tokens:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 module.exports = {
     getTokenHolders,
     processHoldersForWheel,
-    truncateAddress
+    truncateAddress,
+    getCreatedTokens
 };
