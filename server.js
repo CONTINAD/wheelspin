@@ -8,6 +8,7 @@ const path = require('path');
 const { getTokenHolders, processHoldersForWheel, getCreatedTokens } = require('./services/helius');
 const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
+const discord = require('./services/discord');
 
 // Configuration
 const PORT = process.env.PORT || 3000;
@@ -162,6 +163,7 @@ async function performSpin() {
 
     isSpinning = true;
     broadcast({ type: 'spinStart' });
+    discord.spinStarted();
 
     // Select winner using weighted random
     const winner = selectWinner(currentWheelData.segments);
@@ -174,6 +176,7 @@ async function performSpin() {
     lastSpinTime = Date.now();
 
     console.log(`[Spin] Winner: ${winner.displayAddress} (${winner.percentage.toFixed(2)}%)`);
+    discord.spinWinner(winner);
 
     // Broadcast spin result
     broadcast({
@@ -193,22 +196,28 @@ async function performSpin() {
         // Try to claim and distribute fees if enabled
         if (feeClaimEnabled && winner.address) {
             console.log(`[Spin] Attempting to claim and distribute fees to winner: ${winner.address}`);
+            discord.feeClaimAttempt(winner.address);
+
             distributionResult = await pumpfun.claimAndDistribute(winner.address, 10);
 
             if (distributionResult.success && distributionResult.distributed > 0) {
                 console.log(`[Spin] Distributed ${distributionResult.distributed} SOL to winner!`);
                 // Update the history record with transaction info
                 updateLatestSpinDistribution(distributionResult);
+                discord.feeClaimSuccess(distributionResult.distributed, distributionResult.transferSignature, winner.address);
             } else if (distributionResult.success) {
                 console.log(`[Spin] No fees available to distribute`);
+                discord.feeClaimNoFees();
             } else {
                 console.log(`[Spin] Fee distribution failed: ${distributionResult.error}`);
+                discord.feeClaimError(distributionResult.error);
             }
 
             // Update balance
             const balanceResult = await pumpfun.getCreatorBalance();
             if (balanceResult.success) {
                 creatorBalance = balanceResult.balance;
+                discord.balanceUpdate(creatorBalance);
             }
         }
 
@@ -249,8 +258,10 @@ async function refreshHolders() {
         });
 
         console.log(`[Server] Holder data refreshed: ${currentHolders.length} holders`);
+        discord.holdersRefreshed(currentHolders.length, TOKEN_MINT_ADDRESS);
     } catch (error) {
         console.error('[Server] Error refreshing holders:', error.message);
+        discord.holdersError(error.message);
     }
 }
 
@@ -289,6 +300,7 @@ function initializePumpFun() {
     if (!privateKey || privateKey === 'your_base58_private_key_here') {
         console.log('[PumpFun] No private key configured - fee claiming disabled');
         console.log('[PumpFun] To enable, set CREATOR_PRIVATE_KEY in .env file');
+        discord.pumpfunDisabled();
         return { success: false };
     }
 
@@ -297,9 +309,11 @@ function initializePumpFun() {
     if (result.success) {
         feeClaimEnabled = true;
         console.log(`[PumpFun] Fee claiming enabled! Creator wallet: ${result.publicKey}`);
+        discord.pumpfunEnabled(result.publicKey);
         return { success: true, publicKey: result.publicKey };
     } else {
         console.error(`[PumpFun] Failed to initialize: ${result.error}`);
+        discord.pumpfunInitError(result.error);
         return { success: false };
     }
 }
@@ -313,10 +327,12 @@ async function autoDetectToken(creatorPublicKey) {
     if (result.success) {
         console.log(`[Server] Found token: ${result.name} (${result.symbol})`);
         console.log(`[Server] Token Mint: ${result.mint}`);
+        discord.tokenDetected(result.mint, result.name, result.symbol);
         return result.mint;
     } else {
         console.log(`[Server] Could not auto-detect token: ${result.error}`);
         console.log('[Server] Please set TOKEN_MINT in environment variables');
+        discord.tokenDetectFailed(result.error);
         return null;
     }
 }
@@ -342,14 +358,17 @@ server.listen(PORT, async () => {
             TOKEN_MINT_ADDRESS = detectedMint;
         } else {
             console.error('[Server] No token detected and no TOKEN_MINT set. Exiting...');
+            discord.error('Server Shutdown', 'No token detected and no TOKEN_MINT set');
             process.exit(1);
         }
     } else if (!TOKEN_MINT_ADDRESS) {
         console.error('[Server] No TOKEN_MINT set and no CREATOR_PRIVATE_KEY for auto-detect. Exiting...');
+        discord.error('Server Shutdown', 'No TOKEN_MINT set and no CREATOR_PRIVATE_KEY for auto-detect');
         process.exit(1);
     }
 
     console.log(`[Server] Using Token: ${TOKEN_MINT_ADDRESS}`);
+    discord.serverStart(PORT, TOKEN_MINT_ADDRESS);
 
     // Get initial balance if enabled
     if (feeClaimEnabled) {
@@ -357,14 +376,15 @@ server.listen(PORT, async () => {
         if (balanceResult.success) {
             creatorBalance = balanceResult.balance;
             console.log(`[PumpFun] Current creator balance: ${creatorBalance} SOL`);
+            discord.balanceUpdate(creatorBalance);
         }
     }
 
     // Initial holder fetch
     await refreshHolders();
 
-    // Refresh holders every 5 minutes
-    setInterval(refreshHolders, 5 * 60 * 1000);
+    // Refresh holders every 1 minute
+    setInterval(refreshHolders, 60 * 1000);
 
     // Start auto-spin
     startAutoSpin();
@@ -374,4 +394,3 @@ server.listen(PORT, async () => {
 });
 
 module.exports = app;
-
