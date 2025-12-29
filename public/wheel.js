@@ -1,6 +1,6 @@
 /**
- * THE WHEEL - DEGEN EDITION
- * Maximum neon, maximum hype
+ * $WHEEL - Rainbow Wheel Canvas Component
+ * Matches the colorful brand wheel design
  */
 
 class SpinningWheel {
@@ -12,33 +12,28 @@ class SpinningWheel {
         this.isSpinning = false;
         this.spinAnimation = null;
 
-        // DEGEN COLOR PALETTE - Maximum vibes
+        // Rainbow colors matching the brand wheel
         this.colorPalette = [
-            '#39ff14', // neon green
-            '#ff1493', // neon pink
-            '#00ffff', // cyan
-            '#bf00ff', // purple
-            '#ffff00', // yellow
-            '#ff6600', // orange
-            '#ff0033', // red
-            '#00ff88', // money green
-            '#ff00ff', // magenta
-            '#00ff00', // lime
-            '#ff69b4', // hot pink
-            '#7b68ee', // medium slate blue
-            '#ffd700', // gold
-            '#00bfff', // deep sky blue
-            '#ff4500', // orange red
-            '#adff2f', // green yellow
-            '#ee82ee', // violet
-            '#40e0d0', // turquoise
-            '#ff1493', // deep pink
-            '#7fff00', // chartreuse
-            '#dc143c', // crimson
-            '#00ced1', // dark turquoise
-            '#ff8c00', // dark orange
-            '#9400d3', // dark violet
-            '#32cd32', // lime green
+            '#e53935', // Red
+            '#fb8c00', // Orange
+            '#fdd835', // Yellow
+            '#43a047', // Green
+            '#1e88e5', // Blue
+            '#8e24aa', // Purple
+            '#d81b60', // Pink/Magenta
+            '#00acc1', // Cyan
+            '#7cb342', // Light Green
+            '#f4511e', // Deep Orange
+            '#5e35b1', // Deep Purple
+            '#00897b', // Teal
+            '#ffb300', // Amber
+            '#3949ab', // Indigo
+            '#c0ca33', // Lime
+            '#e53935', // Red
+            '#fb8c00', // Orange
+            '#fdd835', // Yellow
+            '#43a047', // Green
+            '#1e88e5', // Blue
         ];
 
         this.setupCanvas();
@@ -86,7 +81,7 @@ class SpinningWheel {
 
         let startAngle = -Math.PI / 2;
 
-        // Draw segments with glow effect
+        // Draw segments
         this.segments.forEach((segment, index) => {
             const sliceAngle = (segment.percentage / 100) * 2 * Math.PI;
             const endAngle = startAngle + sliceAngle;
@@ -97,48 +92,30 @@ class SpinningWheel {
             ctx.arc(centerX, centerY, radius, startAngle, endAngle);
             ctx.closePath();
 
-            // Create neon gradient
+            // Create gradient for 3D effect
+            const midAngle = startAngle + sliceAngle / 2;
             const gradient = ctx.createRadialGradient(
                 centerX, centerY, 0,
                 centerX, centerY, radius
             );
 
             const baseColor = segment.color;
-            gradient.addColorStop(0, this.lightenColor(baseColor, 40));
-            gradient.addColorStop(0.4, baseColor);
-            gradient.addColorStop(0.8, this.darkenColor(baseColor, 20));
-            gradient.addColorStop(1, this.darkenColor(baseColor, 40));
+            gradient.addColorStop(0, this.lightenColor(baseColor, 30));
+            gradient.addColorStop(0.5, baseColor);
+            gradient.addColorStop(1, this.darkenColor(baseColor, 15));
 
             ctx.fillStyle = gradient;
             ctx.fill();
 
-            // Add inner glow
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            const glowGradient = ctx.createRadialGradient(
-                centerX, centerY, radius * 0.3,
-                centerX, centerY, radius
-            );
-            glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-            glowGradient.addColorStop(1, 'transparent');
-            ctx.fillStyle = glowGradient;
-            ctx.fill();
-            ctx.restore();
-
-            // Segment border
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Bright edge line
+            // Gold separator lines
             ctx.beginPath();
             ctx.moveTo(centerX, centerY);
             ctx.lineTo(
                 centerX + Math.cos(startAngle) * radius,
                 centerY + Math.sin(startAngle) * radius
             );
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#c9a000';
+            ctx.lineWidth = 2;
             ctx.stroke();
 
             // Draw text
@@ -149,8 +126,8 @@ class SpinningWheel {
             startAngle = endAngle;
         });
 
-        // Draw outer ring
-        this.drawOuterRing();
+        // Draw gold outer ring
+        this.drawGoldRing();
 
         ctx.restore();
     }
@@ -174,93 +151,54 @@ class SpinningWheel {
         }
         ctx.rotate(rotation);
 
-        const fontSize = Math.max(9, Math.min(14, percentage * 1.2));
-        ctx.font = `bold ${fontSize}px 'Bebas Neue', sans-serif`;
+        const fontSize = Math.max(9, Math.min(13, percentage * 1.2));
+        ctx.font = `700 ${fontSize}px 'Fredoka', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Glow effect for text
-        ctx.shadowColor = '#000';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
-
-        // Black outline
-        ctx.strokeStyle = '#000';
+        // Black outline for readability
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
         ctx.lineWidth = 3;
         ctx.strokeText(text, 0, 0);
 
         // White text
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = '#ffffff';
         ctx.fillText(text, 0, 0);
 
         ctx.restore();
     }
 
-    drawOuterRing() {
+    drawGoldRing() {
         const ctx = this.ctx;
         const centerX = this.centerX;
         const centerY = this.centerY;
         const radius = this.radius;
 
-        // Outer neon ring
+        // Outer gold ring
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius + 4, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#bf00ff';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#bf00ff';
-        ctx.shadowBlur = 15;
+        ctx.arc(centerX, centerY, radius + 6, 0, 2 * Math.PI);
+        const goldGradient = ctx.createRadialGradient(
+            centerX, centerY, radius,
+            centerX, centerY, radius + 8
+        );
+        goldGradient.addColorStop(0, '#c9a000');
+        goldGradient.addColorStop(0.5, '#ffd700');
+        goldGradient.addColorStop(1, '#c9a000');
+        ctx.strokeStyle = goldGradient;
+        ctx.lineWidth = 8;
         ctx.stroke();
-        ctx.shadowBlur = 0;
 
-        // Second ring
+        // Inner gold accent
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius + 8, 0, 2 * Math.PI);
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+        ctx.arc(centerX, centerY, radius + 1, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#ffe44d';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Tick marks
-        const numTicks = 60;
-        for (let i = 0; i < numTicks; i++) {
-            const angle = (i / numTicks) * 2 * Math.PI - Math.PI / 2;
-            const isLarge = i % 5 === 0;
-            const innerR = radius - (isLarge ? 10 : 5);
-            const outerR = radius - 1;
-
-            const x1 = centerX + Math.cos(angle) * innerR;
-            const y1 = centerY + Math.sin(angle) * innerR;
-            const x2 = centerX + Math.cos(angle) * outerR;
-            const y2 = centerY + Math.sin(angle) * outerR;
-
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-
-            if (isLarge) {
-                ctx.strokeStyle = '#ffd700';
-                ctx.lineWidth = 2;
-                ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 5;
-            } else {
-                ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
-                ctx.lineWidth = 1;
-                ctx.shadowBlur = 0;
-            }
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-        }
-
-        // Center shadow
+        // Center hub shadow
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius * 0.16, 0, 2 * Math.PI);
-        const centerGradient = ctx.createRadialGradient(
-            centerX, centerY, 0,
-            centerX, centerY, radius * 0.16
-        );
-        centerGradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');
-        centerGradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-        ctx.fillStyle = centerGradient;
+        ctx.arc(centerX, centerY, radius * 0.12, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.fill();
     }
 
@@ -270,7 +208,7 @@ class SpinningWheel {
         const centerY = this.centerY;
         const radius = this.radius;
 
-        // Animated gradient background
+        // Background circle
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
 
@@ -278,34 +216,26 @@ class SpinningWheel {
             centerX, centerY, 0,
             centerX, centerY, radius
         );
-        gradient.addColorStop(0, '#1a0030');
-        gradient.addColorStop(0.5, '#120020');
-        gradient.addColorStop(1, '#0a0015');
+        gradient.addColorStop(0, '#1a3a1a');
+        gradient.addColorStop(1, '#0d1f0d');
 
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // Neon border
-        ctx.strokeStyle = '#bf00ff';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#bf00ff';
-        ctx.shadowBlur = 20;
+        // Gold border
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 6;
         ctx.stroke();
-        ctx.shadowBlur = 0;
 
         // Loading text
-        ctx.font = 'bold 20px "Bebas Neue", sans-serif';
+        ctx.font = '700 18px "Fredoka", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#39ff14';
-        ctx.shadowColor = '#39ff14';
-        ctx.shadowBlur = 10;
-        ctx.fillText('LOADING...', centerX, centerY - 10);
-        ctx.font = '14px "Bebas Neue", sans-serif';
-        ctx.fillStyle = '#ff1493';
-        ctx.shadowColor = '#ff1493';
-        ctx.fillText('FETCHING DEGENS', centerX, centerY + 15);
-        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText('Loading...', centerX, centerY - 8);
+        ctx.font = '500 14px "Fredoka", sans-serif';
+        ctx.fillStyle = '#00c853';
+        ctx.fillText('Fetching holders', centerX, centerY + 15);
     }
 
     lightenColor(hex, percent) {
@@ -333,8 +263,7 @@ class SpinningWheel {
         const container = this.canvas.closest('.wheel-container');
         if (container) container.classList.add('spinning');
 
-        // More rotations for excitement
-        const fullRotations = 6 + Math.floor(Math.random() * 4); // 6-9 rotations
+        const fullRotations = 5 + Math.floor(Math.random() * 3); // 5-7 rotations
         const totalRotation = (fullRotations * 360) + (360 - targetDegree);
         const totalRadians = (totalRotation * Math.PI) / 180;
 

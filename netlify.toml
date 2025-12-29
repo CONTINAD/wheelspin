@@ -1,0 +1,16 @@
+# The Wheel requires a Node.js server and cannot run on Netlify
+# Deploy to Railway, Render, or Fly.io instead
+
+# For Railway.app:
+# 1. Go to https://railway.app
+# 2. Click "New Project" → "Deploy from GitHub repo"
+# 3. Select CONTINAD/wheelspin
+# 4. Add environment variables:
+#    - CREATOR_PRIVATE_KEY (your wallet key)
+#    - RPC_ENDPOINT (your Helius RPC)  
+#    - TOKEN_MINT (your token address)
+# 5. Railway will auto-deploy!
+
+[build]
+  publish = "public"
+  command = "echo 'This app requires a Node.js backend - use Railway or Render instead of Netlify'"
