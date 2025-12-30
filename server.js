@@ -380,6 +380,11 @@ server.listen(PORT, async () => {
     console.log(`[Server] Using Token: ${TOKEN_MINT_ADDRESS}`);
     discord.serverStart(PORT, TOKEN_MINT_ADDRESS);
 
+    // Initialize totalFeesSent from history
+    const historyForTotal = getSpinHistory(1000); // Get as many as possible
+    totalFeesSent = historyForTotal.reduce((sum, item) => sum + (item.distribution || 0), 0);
+    console.log(`[Server] Initialized Total Fees Sent: ${totalFeesSent.toFixed(4)} SOL`);
+
     // Get initial balance if enabled
     if (feeClaimEnabled) {
         const balanceResult = await pumpfun.getCreatorBalance();

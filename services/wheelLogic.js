@@ -1,15 +1,42 @@
-/**
- * Wheel Logic Service
- * Handles weighted random selection and spin history
- */
+const fs = require('fs');
+const path = require('path');
+
+// Persistence configuration
+const DATA_PATH = path.join(__dirname, '../data/history.json');
 
 // Store spin history
-const spinHistory = [];
+let spinHistory = [];
 const MAX_HISTORY = 50;
 
 // Recent winners cooldown (can't win for next N spins)
 const recentWinners = [];
 const WINNER_COOLDOWN_SPINS = 2;
+
+// Load history on startup
+function loadHistory() {
+    try {
+        if (fs.existsSync(DATA_PATH)) {
+            const data = fs.readFileSync(DATA_PATH, 'utf8');
+            const parsed = JSON.parse(data);
+            spinHistory = parsed || [];
+            console.log(`[WheelLogic] Loaded ${spinHistory.length} spins from history`);
+        }
+    } catch (error) {
+        console.error('[WheelLogic] Failed to load history:', error.message);
+    }
+}
+
+function saveHistory() {
+    try {
+        fs.writeFileSync(DATA_PATH, JSON.stringify(spinHistory, null, 2));
+    } catch (error) {
+        console.error('[WheelLogic] Failed to save history:', error.message);
+    }
+}
+
+// Initial load
+loadHistory();
+
 
 /**
  * Perform weighted random selection based on token holdings
@@ -123,6 +150,7 @@ function recordSpin(winner, timestamp = new Date()) {
         spinHistory.pop();
     }
 
+    saveHistory();
     return record;
 }
 
@@ -138,6 +166,7 @@ function updateLatestSpinDistribution(distribution) {
         latestSpin.distribution = distribution.distributed;
         latestSpin.txSignature = distribution.transferSignature || null;
         latestSpin.solscanUrl = distribution.transferTxUrl || null;
+        saveHistory();
     }
 
     return true;
