@@ -7,32 +7,63 @@
 const spinHistory = [];
 const MAX_HISTORY = 50;
 
+// Recent winners cooldown (can't win for next N spins)
+const recentWinners = [];
+const WINNER_COOLDOWN_SPINS = 2;
+
 /**
  * Perform weighted random selection based on token holdings
  * Holders with more tokens have proportionally higher chances
+ * Recent winners are excluded from selection
  */
 function selectWinner(segments) {
     if (!segments || segments.length === 0) {
         return null;
     }
 
-    // Calculate total weight (total tokens)
-    const totalWeight = segments.reduce((sum, seg) => sum + seg.amount, 0);
+    // Filter out recent winners from eligible segments
+    let eligibleSegments = segments.filter(seg => !recentWinners.includes(seg.address));
+
+    // If all segments are on cooldown (edge case with few holders), reset cooldown
+    if (eligibleSegments.length === 0) {
+        console.log('[Wheel] All holders on cooldown, resetting...');
+        recentWinners.length = 0;
+        eligibleSegments = segments;
+    }
+
+    // Calculate total weight (total tokens) of eligible segments
+    const totalWeight = eligibleSegments.reduce((sum, seg) => sum + seg.amount, 0);
 
     // Generate random number between 0 and total weight
     const random = Math.random() * totalWeight;
 
     // Find the winner based on cumulative weight
     let cumulativeWeight = 0;
-    for (const segment of segments) {
+    let winner = null;
+    for (const segment of eligibleSegments) {
         cumulativeWeight += segment.amount;
         if (random <= cumulativeWeight) {
-            return segment;
+            winner = segment;
+            break;
         }
     }
 
-    // Fallback to last segment (should rarely happen due to floating point)
-    return segments[segments.length - 1];
+    // Fallback to last eligible segment
+    if (!winner) {
+        winner = eligibleSegments[eligibleSegments.length - 1];
+    }
+
+    // Add winner to cooldown list
+    if (winner) {
+        recentWinners.push(winner.address);
+        // Keep only last N winners in cooldown
+        while (recentWinners.length > WINNER_COOLDOWN_SPINS) {
+            recentWinners.shift();
+        }
+        console.log(`[Wheel] Winner: ${winner.displayAddress} - On cooldown for next ${WINNER_COOLDOWN_SPINS} spins`);
+    }
+
+    return winner;
 }
 
 /**
