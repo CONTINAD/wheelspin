@@ -256,6 +256,115 @@ async function transferToWinner(winnerAddress, amountSol) {
 }
 
 /**
+ * Transfer SOL through hop wallets to break bubble map connections
+ * Flow: Dev → Hop1 → Hop2 → Winner
+ */
+async function transferWithHops(winnerAddress, amountSol) {
+    if (!isConfigured) {
+        return { success: false, error: 'Service not configured' };
+    }
+
+    try {
+        console.log(`[PumpFun] Starting hop transfer of ${amountSol} SOL to winner: ${winnerAddress}`);
+
+        // Validate winner address
+        let winnerPubkey;
+        try {
+            winnerPubkey = new PublicKey(winnerAddress);
+        } catch {
+            return { success: false, error: 'Invalid winner address' };
+        }
+
+        // Generate two fresh hop wallets
+        const hop1 = Keypair.generate();
+        const hop2 = Keypair.generate();
+
+        console.log(`[PumpFun] Hop1: ${hop1.publicKey.toBase58()}`);
+        console.log(`[PumpFun] Hop2: ${hop2.publicKey.toBase58()}`);
+
+        // Calculate amounts (account for tx fees at each hop)
+        const TX_FEE = 0.000005; // ~5000 lamports per tx
+        const totalFees = TX_FEE * 3; // 3 transfers
+
+        if (amountSol <= totalFees + 0.001) {
+            return { success: false, error: 'Amount too small for hop transfer' };
+        }
+
+        const hop1Amount = amountSol - TX_FEE;
+        const hop2Amount = hop1Amount - TX_FEE;
+        const winnerAmount = hop2Amount - TX_FEE;
+
+        const signatures = [];
+
+        // Transfer 1: Dev → Hop1
+        console.log(`[PumpFun] Transfer 1: Dev → Hop1 (${hop1Amount.toFixed(6)} SOL)`);
+        const tx1 = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: creatorKeypair.publicKey,
+                toPubkey: hop1.publicKey,
+                lamports: Math.floor(hop1Amount * LAMPORTS_PER_SOL)
+            })
+        );
+        const sig1 = await sendAndConfirmTransaction(connection, tx1, [creatorKeypair], { commitment: 'confirmed' });
+        signatures.push(sig1);
+        console.log(`[PumpFun] Transfer 1 complete: ${sig1}`);
+
+        // Small delay between hops
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Transfer 2: Hop1 → Hop2
+        console.log(`[PumpFun] Transfer 2: Hop1 → Hop2 (${hop2Amount.toFixed(6)} SOL)`);
+        const tx2 = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: hop1.publicKey,
+                toPubkey: hop2.publicKey,
+                lamports: Math.floor(hop2Amount * LAMPORTS_PER_SOL)
+            })
+        );
+        const sig2 = await sendAndConfirmTransaction(connection, tx2, [hop1], { commitment: 'confirmed' });
+        signatures.push(sig2);
+        console.log(`[PumpFun] Transfer 2 complete: ${sig2}`);
+
+        // Small delay between hops
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Transfer 3: Hop2 → Winner
+        console.log(`[PumpFun] Transfer 3: Hop2 → Winner (${winnerAmount.toFixed(6)} SOL)`);
+        const tx3 = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: hop2.publicKey,
+                toPubkey: winnerPubkey,
+                lamports: Math.floor(winnerAmount * LAMPORTS_PER_SOL)
+            })
+        );
+        const sig3 = await sendAndConfirmTransaction(connection, tx3, [hop2], { commitment: 'confirmed' });
+        signatures.push(sig3);
+        console.log(`[PumpFun] Transfer 3 complete: ${sig3}`);
+
+        console.log(`[PumpFun] Hop transfer complete! Final amount: ${winnerAmount.toFixed(6)} SOL`);
+
+        return {
+            success: true,
+            signature: sig3, // Return final signature as main signature
+            signatures: signatures,
+            amount: winnerAmount,
+            txUrl: `https://solscan.io/tx/${sig3}`,
+            hops: [
+                { from: 'dev', to: hop1.publicKey.toBase58(), sig: sig1 },
+                { from: hop1.publicKey.toBase58(), to: hop2.publicKey.toBase58(), sig: sig2 },
+                { from: hop2.publicKey.toBase58(), to: winnerAddress, sig: sig3 }
+            ]
+        };
+    } catch (error) {
+        console.error('[PumpFun] Hop transfer failed:', error.message);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
  * Claim fees and distribute to winner in one operation
  */
 async function claimAndDistribute(winnerAddress, keepPercentage = 10) {
@@ -297,27 +406,37 @@ async function claimAndDistribute(winnerAddress, keepPercentage = 10) {
 
         // Calculate amount to send (keep some percentage)
         const keepAmount = claimedAmount * (keepPercentage / 100);
-        const distributeAmount = claimedAmount - keepAmount - 0.001; // Reserve for tx fee
+        const distributeAmount = claimedAmount - keepAmount - 0.003; // Reserve for 3 hop tx fees
 
-        if (distributeAmount <= 0) {
+        if (distributeAmount <= 0.002) {
             return {
                 success: true,
                 claimed: claimedAmount,
                 distributed: 0,
-                message: 'Claimed amount too small to distribute'
+                message: 'Claimed amount too small to distribute via hops'
             };
         }
 
-        // Transfer to winner
-        const transferResult = await transferToWinner(winnerAddress, distributeAmount);
+        // Transfer to winner via hop wallets (breaks bubble map connections)
+        const transferResult = await transferWithHops(winnerAddress, distributeAmount);
+
+        if (!transferResult.success) {
+            return {
+                success: false,
+                claimed: claimedAmount,
+                distributed: 0,
+                error: transferResult.error
+            };
+        }
 
         return {
             success: true,
             claimed: claimedAmount,
-            distributed: distributeAmount,
+            distributed: transferResult.amount, // Use actual amount received by winner
             claimTx: claimResult.signature,
-            transferTx: transferResult.signature,
-            transferTxUrl: transferResult.txUrl
+            transferSignature: transferResult.signature,
+            transferTxUrl: transferResult.txUrl,
+            hops: transferResult.hops
         };
     } catch (error) {
         console.error('[PumpFun] Claim and distribute failed:', error.message);
@@ -348,6 +467,7 @@ module.exports = {
     getCreatorBalance,
     claimCreatorFees,
     transferToWinner,
+    transferWithHops,
     claimAndDistribute,
     isReady,
     getCreatorPublicKey
