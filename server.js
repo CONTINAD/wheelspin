@@ -5,7 +5,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 
-const { getTokenHolders, processHoldersForWheel, getCreatedTokens } = require('./services/helius');
+const { getTokenHolders, processHoldersForWheel, getCreatedTokens, setCreatorExclusion } = require('./services/helius');
 const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
 const discord = require('./services/discord');
@@ -310,6 +310,8 @@ function initializePumpFun() {
         feeClaimEnabled = true;
         console.log(`[PumpFun] Fee claiming enabled! Creator wallet: ${result.publicKey}`);
         discord.pumpfunEnabled(result.publicKey);
+        // Exclude creator from winning
+        setCreatorExclusion(result.publicKey);
         return { success: true, publicKey: result.publicKey };
     } else {
         console.error(`[PumpFun] Failed to initialize: ${result.error}`);

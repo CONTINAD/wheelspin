@@ -5,7 +5,9 @@
 
 // Configuration
 const API_BASE = window.location.origin;
-const WS_URL = `ws://${window.location.host}`;
+// Use wss:// for HTTPS, ws:// for HTTP
+const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${WS_PROTOCOL}//${window.location.host}`;
 
 // State
 let wheel = null;

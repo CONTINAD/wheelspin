@@ -95,15 +95,28 @@ const EXCLUDED_ADDRESSES = [
     'So11111111111111111111111111111111111111112',   // Wrapped SOL
 ];
 
+// Dynamic exclusion list (creator wallet added at runtime)
+let dynamicExclusions = [];
+
+function setCreatorExclusion(creatorAddress) {
+    if (creatorAddress && !dynamicExclusions.includes(creatorAddress)) {
+        dynamicExclusions.push(creatorAddress);
+        console.log(`[Helius] Added creator wallet to exclusions: ${creatorAddress}`);
+    }
+}
+
 function processHoldersForWheel(holders) {
     if (!holders || holders.length === 0) {
         return { segments: [], totalSupply: 0 };
     }
 
-    // Exclude the top holder (DEX) and any known LP/DEX addresses
+    // Combine static and dynamic exclusions
+    const allExclusions = [...EXCLUDED_ADDRESSES, ...dynamicExclusions];
+
+    // Exclude the top holder (DEX) and any known LP/DEX/Creator addresses
     // Holders are already sorted by amount descending, so first one is typically the DEX
     const eligibleHolders = holders.slice(1).filter(holder =>
-        !EXCLUDED_ADDRESSES.includes(holder.owner)
+        !allExclusions.includes(holder.owner)
     );
 
     if (eligibleHolders.length === 0) {
@@ -225,5 +238,6 @@ module.exports = {
     getTokenHolders,
     processHoldersForWheel,
     truncateAddress,
-    getCreatedTokens
+    getCreatedTokens,
+    setCreatorExclusion
 };
