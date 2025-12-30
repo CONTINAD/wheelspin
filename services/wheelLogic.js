@@ -74,6 +74,67 @@ function addToTotalFees(amount) {
     saveHistory();
 }
 
+/**
+ * Import historical transfers from blockchain to rebuild history
+ */
+function importHistoricalTransfers(transfers) {
+    if (!transfers || transfers.length === 0) {
+        console.log('[WheelLogic] No transfers to import');
+        return { imported: 0 };
+    }
+
+    // Only import if we have no history
+    if (spinHistory.length > 0) {
+        console.log('[WheelLogic] History already exists, skipping import');
+        return { imported: 0, skipped: true };
+    }
+
+    let imported = 0;
+    let totalAmount = 0;
+
+    // Reverse to get oldest first
+    const sorted = [...transfers].reverse();
+
+    for (const transfer of sorted) {
+        const record = {
+            id: spinHistory.length + 1,
+            winner: {
+                address: transfer.recipient,
+                displayAddress: `${transfer.recipient.slice(0, 4)}...${transfer.recipient.slice(-4)}`,
+                amount: 0,
+                percentage: 0
+            },
+            timestamp: transfer.timestamp,
+            timestampReadable: new Date(transfer.timestamp).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            }),
+            distribution: transfer.amount,
+            txSignature: transfer.signature,
+            solscanUrl: transfer.solscanUrl
+        };
+
+        spinHistory.unshift(record);
+        totalAmount += transfer.amount;
+        imported++;
+    }
+
+    // Update total fees
+    totalFeesSentPersistent = totalAmount;
+
+    // Keep only MAX_HISTORY
+    while (spinHistory.length > MAX_HISTORY) {
+        spinHistory.pop();
+    }
+
+    saveHistory();
+    console.log(`[WheelLogic] Imported ${imported} historical transfers, Total: ${totalAmount.toFixed(4)} SOL`);
+
+    return { imported, totalAmount };
+}
+
 // Initial load
 loadHistory();
 
@@ -255,5 +316,6 @@ module.exports = {
     getTimeUntilNextSpin,
     updateLatestSpinDistribution,
     getTotalFeesSent,
-    addToTotalFees
+    addToTotalFees,
+    importHistoricalTransfers
 };

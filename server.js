@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const path = require('path');
 
 const { getTokenHolders, processHoldersForWheel, getCreatedTokens, setCreatorExclusion } = require('./services/helius');
-const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution, getTotalFeesSent, addToTotalFees } = require('./services/wheelLogic');
+const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution, getTotalFeesSent, addToTotalFees, importHistoricalTransfers } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
 const discord = require('./services/discord');
 
@@ -380,8 +380,20 @@ server.listen(PORT, async () => {
     discord.serverStart(PORT, TOKEN_MINT_ADDRESS);
 
     // Log loaded persistent data
+    const loadedHistory = getSpinHistory(100);
     console.log(`[Server] Total Fees Sent (loaded): ${getTotalFeesSent().toFixed(4)} SOL`);
-    console.log(`[Server] Spin History (loaded): ${getSpinHistory(100).length} spins`);
+    console.log(`[Server] Spin History (loaded): ${loadedHistory.length} spins`);
+
+    // If no history, try to fetch from blockchain
+    if (loadedHistory.length === 0 && feeClaimEnabled) {
+        console.log('[Server] No history found, fetching from blockchain...');
+        const histResult = await pumpfun.getHistoricalTransfers(50);
+        if (histResult.success && histResult.transfers.length > 0) {
+            const importResult = importHistoricalTransfers(histResult.transfers);
+            console.log(`[Server] Imported ${importResult.imported} historical transactions`);
+            discord.info('History Restored', `Imported ${importResult.imported} historical transactions from blockchain`);
+        }
+    }
 
     // Get initial balance if enabled
     if (feeClaimEnabled) {

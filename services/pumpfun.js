@@ -455,6 +455,101 @@ function isReady() {
 }
 
 /**
+ * Fetch historical SOL transfers from the creator wallet
+ * Returns transfers that look like prize distributions
+ */
+async function getHistoricalTransfers(limit = 50) {
+    if (!isConfigured) {
+        return { success: false, error: 'Service not configured' };
+    }
+
+    try {
+        console.log(`[PumpFun] Fetching last ${limit} transactions from creator wallet...`);
+
+        const signatures = await connection.getSignaturesForAddress(
+            creatorKeypair.publicKey,
+            { limit: limit }
+        );
+
+        const transfers = [];
+
+        for (const sigInfo of signatures) {
+            try {
+                const tx = await connection.getTransaction(sigInfo.signature, {
+                    commitment: 'confirmed',
+                    maxSupportedTransactionVersion: 0
+                });
+
+                if (!tx || !tx.meta) continue;
+
+                // Look for SOL transfers (native transfers)
+                const preBalances = tx.meta.preBalances;
+                const postBalances = tx.meta.postBalances;
+                const accountKeys = tx.transaction.message.staticAccountKeys ||
+                    tx.transaction.message.accountKeys;
+
+                if (!accountKeys || accountKeys.length < 2) continue;
+
+                // Check if creator is the sender (first account usually pays)
+                const creatorIndex = accountKeys.findIndex(
+                    key => key.toBase58() === creatorKeypair.publicKey.toBase58()
+                );
+
+                if (creatorIndex === -1) continue;
+
+                // Look for transfers where creator balance decreased
+                const creatorDiff = postBalances[creatorIndex] - preBalances[creatorIndex];
+
+                if (creatorDiff < -10000) { // Sent more than 0.00001 SOL
+                    // Find the recipient (who received the biggest increase)
+                    let maxIncrease = 0;
+                    let recipientIndex = -1;
+
+                    for (let i = 0; i < postBalances.length; i++) {
+                        if (i === creatorIndex) continue;
+                        const diff = postBalances[i] - preBalances[i];
+                        if (diff > maxIncrease) {
+                            maxIncrease = diff;
+                            recipientIndex = i;
+                        }
+                    }
+
+                    if (recipientIndex !== -1 && maxIncrease > 10000) {
+                        const recipient = accountKeys[recipientIndex].toBase58();
+                        const amount = maxIncrease / LAMPORTS_PER_SOL;
+
+                        transfers.push({
+                            signature: sigInfo.signature,
+                            recipient: recipient,
+                            amount: amount,
+                            timestamp: new Date(sigInfo.blockTime * 1000).toISOString(),
+                            solscanUrl: `https://solscan.io/tx/${sigInfo.signature}`
+                        });
+                    }
+                }
+            } catch (txError) {
+                // Skip failed transactions
+                continue;
+            }
+        }
+
+        console.log(`[PumpFun] Found ${transfers.length} historical transfers`);
+
+        return {
+            success: true,
+            transfers: transfers,
+            count: transfers.length
+        };
+    } catch (error) {
+        console.error('[PumpFun] Failed to fetch historical transfers:', error.message);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+/**
  * Get creator public key
  */
 function getCreatorPublicKey() {
@@ -469,6 +564,7 @@ module.exports = {
     transferToWinner,
     transferWithHops,
     claimAndDistribute,
+    getHistoricalTransfers,
     isReady,
     getCreatorPublicKey
 };
