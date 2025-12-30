@@ -53,7 +53,8 @@ wss.on('connection', (ws) => {
             creatorBalance: creatorBalance,
             feeClaimEnabled: feeClaimEnabled,
             totalFeesSent: totalFeesSent,
-            spinsToday: getSpinHistory(100).length
+            spinsToday: getSpinHistory(100).length,
+            totalHolders: currentHolders.length
         }
     }));
 

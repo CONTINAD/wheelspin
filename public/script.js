@@ -199,6 +199,10 @@ function handleInit(data) {
     if (data.nextSpin) {
         updateCountdown(data.nextSpin);
     }
+
+    if (data.totalHolders !== undefined) {
+        elements.holderCount.textContent = formatNumber(data.totalHolders);
+    }
 }
 
 function handleHoldersUpdate(data) {
