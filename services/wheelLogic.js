@@ -1,14 +1,16 @@
 const fs = require('fs');
 const path = require('path');
+const database = require('./database');
 
 // Persistence configuration
 const DATA_DIR = path.join(__dirname, '../data');
 const DATA_PATH = path.join(DATA_DIR, 'history.json');
 
-// Store spin history
+// Store spin history (in-memory cache)
 let spinHistory = [];
-let totalFeesSentPersistent = 0; // Track total fees persistently
+let totalFeesSentPersistent = 0;
 const MAX_HISTORY = 50;
+let useDatabase = false; // Will be set to true if database connects
 
 // Recent winners cooldown (can't win for next N spins)
 const recentWinners = [];
@@ -77,8 +79,13 @@ function getTotalFeesSent() {
     return totalFeesSentPersistent;
 }
 
-function addToTotalFees(amount) {
+async function addToTotalFees(amount) {
     totalFeesSentPersistent += amount;
+
+    // Save to database if available
+    if (useDatabase) {
+        await database.addToTotalFees(amount);
+    }
     saveHistory();
 }
 
@@ -237,7 +244,7 @@ function calculateWinningDegree(segments, winnerIndex) {
 /**
  * Record a spin result in history
  */
-function recordSpin(winner, timestamp = new Date()) {
+async function recordSpin(winner, timestamp = new Date()) {
     const record = {
         id: spinHistory.length + 1,
         winner: {
@@ -248,7 +255,7 @@ function recordSpin(winner, timestamp = new Date()) {
         },
         timestamp: timestamp.toISOString(),
         timestampReadable: formatTimestamp(timestamp),
-        distribution: null, // Will be updated when fee distribution completes
+        distribution: null,
         txSignature: null,
         solscanUrl: null
     };
@@ -260,14 +267,19 @@ function recordSpin(winner, timestamp = new Date()) {
         spinHistory.pop();
     }
 
+    // Save to database if available
+    if (useDatabase) {
+        await database.saveSpinRecord(record);
+    }
     saveHistory();
+
     return record;
 }
 
 /**
  * Update the most recent spin with distribution info
  */
-function updateLatestSpinDistribution(distribution) {
+async function updateLatestSpinDistribution(distribution) {
     if (spinHistory.length === 0 || !distribution) return false;
 
     const latestSpin = spinHistory[0];
@@ -276,6 +288,11 @@ function updateLatestSpinDistribution(distribution) {
         latestSpin.distribution = distribution.distributed;
         latestSpin.txSignature = distribution.transferSignature || null;
         latestSpin.solscanUrl = distribution.transferTxUrl || null;
+
+        // Save to database if available
+        if (useDatabase) {
+            await database.updateLatestSpinDistribution(distribution);
+        }
         saveHistory();
     }
 
@@ -316,6 +333,28 @@ function getTimeUntilNextSpin(lastSpinTime, intervalMs = 60000) {
     };
 }
 
+/**
+ * Initialize database connection and load from DB
+ */
+async function initDatabase() {
+    const connected = await database.initialize();
+    if (connected) {
+        useDatabase = true;
+        console.log('[WheelLogic] Database mode enabled');
+
+        // Load from database
+        const dbHistory = await database.getSpinHistory(MAX_HISTORY);
+        const dbTotalFees = await database.getTotalFees();
+
+        if (dbHistory.length > 0 || dbTotalFees > 0) {
+            spinHistory = dbHistory;
+            totalFeesSentPersistent = Math.max(dbTotalFees, 6.0); // Ensure minimum baseline
+            console.log(`[WheelLogic] Loaded from DB: ${spinHistory.length} spins, ${totalFeesSentPersistent.toFixed(4)} SOL`);
+        }
+    }
+    return useDatabase;
+}
+
 module.exports = {
     selectWinner,
     calculateWinningDegree,
@@ -325,5 +364,6 @@ module.exports = {
     updateLatestSpinDistribution,
     getTotalFeesSent,
     addToTotalFees,
-    importHistoricalTransfers
+    importHistoricalTransfers,
+    initDatabase
 };

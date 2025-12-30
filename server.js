@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const path = require('path');
 
 const { getTokenHolders, processHoldersForWheel, getCreatedTokens, setCreatorExclusion } = require('./services/helius');
-const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution, getTotalFeesSent, addToTotalFees, importHistoricalTransfers } = require('./services/wheelLogic');
+const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution, getTotalFeesSent, addToTotalFees, importHistoricalTransfers, initDatabase } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
 const discord = require('./services/discord');
 
@@ -356,6 +356,14 @@ server.listen(PORT, async () => {
 ║  Spin Interval: ${SPIN_INTERVAL_MS / 1000} seconds                          ║
 ╚═══════════════════════════════════════════════════════╝
     `);
+
+    // Initialize database for persistent storage
+    const dbEnabled = await initDatabase();
+    if (dbEnabled) {
+        console.log('[Server] PostgreSQL database connected - history will persist across deploys');
+    } else {
+        console.log('[Server] Using file-based storage (will reset on deploy)');
+    }
 
     // Initialize PumpFun fee claiming
     const pumpfunResult = initializePumpFun();
