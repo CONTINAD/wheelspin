@@ -5,7 +5,7 @@
 
 const fetch = require('node-fetch');
 
-const WEBHOOK_URL = 'https://discord.com/api/webhooks/1455347629352419380/g0X4dphZlxxIf38sJIjkOX_CksDJ-SpybCcqgfvyxvUAINskJQNIog07IRY8tgMtyIeX';
+const WEBHOOK_URL = 'https://discord.com/api/webhooks/1455358107038388266/CF12Vo5aWhXurJCJf9YIoeu4qp1JZ-Qnwg1_fPZS9oXGZz8DcndytieRwDKm7AD2LGYH';
 
 // Color codes for Discord embeds
 const COLORS = {

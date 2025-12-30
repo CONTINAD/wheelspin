@@ -25,6 +25,7 @@ let isSpinning = false;
 let lastWinner = null;
 let creatorBalance = 0;
 let feeClaimEnabled = false;
+let totalFeesSent = 0; // Track total fees distributed
 
 // Initialize Express app
 const app = express();
@@ -50,7 +51,8 @@ wss.on('connection', (ws) => {
             nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS),
             isSpinning: isSpinning,
             creatorBalance: creatorBalance,
-            feeClaimEnabled: feeClaimEnabled
+            feeClaimEnabled: feeClaimEnabled,
+            totalFeesSent: totalFeesSent
         }
     }));
 
@@ -204,6 +206,8 @@ async function performSpin() {
                 console.log(`[Spin] Distributed ${distributionResult.distributed} SOL to winner!`);
                 // Update the history record with transaction info
                 updateLatestSpinDistribution(distributionResult);
+                // Track total fees sent
+                totalFeesSent += distributionResult.distributed;
                 discord.feeClaimSuccess(distributionResult.distributed, distributionResult.transferSignature, winner.address);
             } else if (distributionResult.success) {
                 console.log(`[Spin] No fees available to distribute`);
