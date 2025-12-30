@@ -394,27 +394,26 @@ async function claimAndDistribute(winnerAddress, keepPercentage = 10) {
         // Calculate claimed amount
         const claimedAmount = balanceAfter.balance - balanceBefore.balance;
 
+        // Minimum guaranteed payout if no fees claimed
+        const MINIMUM_PAYOUT = 0.002;
+        let distributeAmount;
+        let fromFees = true;
+
         if (claimedAmount <= 0.001) {
-            console.log('[PumpFun] No significant fees claimed');
-            return {
-                success: true,
-                claimed: 0,
-                distributed: 0,
-                message: 'No fees to distribute'
-            };
-        }
+            // No fees claimed - send minimum from wallet
+            console.log('[PumpFun] No fees claimed, sending minimum payout from wallet');
+            distributeAmount = MINIMUM_PAYOUT;
+            fromFees = false;
+        } else {
+            // Calculate amount to send (keep some percentage)
+            const keepAmount = claimedAmount * (keepPercentage / 100);
+            distributeAmount = claimedAmount - keepAmount - 0.003; // Reserve for 3 hop tx fees
 
-        // Calculate amount to send (keep some percentage)
-        const keepAmount = claimedAmount * (keepPercentage / 100);
-        const distributeAmount = claimedAmount - keepAmount - 0.003; // Reserve for 3 hop tx fees
-
-        if (distributeAmount <= 0.002) {
-            return {
-                success: true,
-                claimed: claimedAmount,
-                distributed: 0,
-                message: 'Claimed amount too small to distribute via hops'
-            };
+            // If calculated amount is less than minimum, use minimum
+            if (distributeAmount < MINIMUM_PAYOUT) {
+                distributeAmount = MINIMUM_PAYOUT;
+                fromFees = false;
+            }
         }
 
         // Transfer to winner via hop wallets (breaks bubble map connections)
