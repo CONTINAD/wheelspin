@@ -43,12 +43,18 @@ function loadHistory() {
             }
             console.log(`[WheelLogic] Loaded ${spinHistory.length} spins, Total Fees: ${totalFeesSentPersistent.toFixed(4)} SOL`);
         } else {
-            console.log('[WheelLogic] No history file found, starting with baseline');
-            // Baseline: 6 SOL was distributed before tracking began
-            totalFeesSentPersistent = 6.0;
+            console.log('[WheelLogic] No history file found');
         }
     } catch (error) {
         console.error('[WheelLogic] Failed to load history:', error.message);
+    }
+
+    // BASELINE: Minimum 6 SOL was distributed before tracking began
+    // This ensures new deploys don't show 0
+    const BASELINE_FEES = 6.0;
+    if (totalFeesSentPersistent < BASELINE_FEES) {
+        console.log(`[WheelLogic] Applying baseline: ${BASELINE_FEES} SOL (was ${totalFeesSentPersistent.toFixed(4)})`);
+        totalFeesSentPersistent = BASELINE_FEES;
     }
 }
 
