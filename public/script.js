@@ -14,6 +14,7 @@ let wheel = null;
 let socket = null;
 let reconnectAttempts = 0;
 let spinsToday = 0;
+let totalFeesSent = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
 // Audio elements
@@ -26,7 +27,7 @@ const sounds = {
 // DOM Elements
 const elements = {
     holderCount: document.getElementById('holderCount'),
-    totalSupply: document.getElementById('totalSupply'),
+    totalFeesSent: document.getElementById('totalFeesSent'),
     countdownSeconds: document.getElementById('countdownSeconds'),
     countdownCircle: document.getElementById('countdownCircle'),
     historyList: document.getElementById('historyList'),
@@ -36,7 +37,6 @@ const elements = {
     winnerAmount: document.getElementById('winnerAmount'),
     tokenAddress: document.getElementById('tokenAddress'),
     copyBtn: document.getElementById('copyBtn'),
-    manualSpinBtn: document.getElementById('manualSpinBtn'),
     closeWinner: document.getElementById('closeWinner'),
     wheelContainer: document.getElementById('wheelContainer'),
     spinsToday: document.getElementById('spinsToday')
@@ -191,6 +191,9 @@ function handleInit(data) {
         updateHistory(data.history);
         spinsToday = data.history.length;
         updateSpinsToday();
+        // Calculate total fees from history
+        totalFeesSent = data.history.reduce((sum, item) => sum + (item.distribution || 0), 0);
+        updateTotalFeesSent();
     }
 
     if (data.nextSpin) {
@@ -207,8 +210,6 @@ function handleHoldersUpdate(data) {
 function handleSpinStart() {
     console.log('[App] Spin starting');
     elements.wheelContainer.classList.add('spinning');
-    elements.manualSpinBtn.disabled = true;
-    elements.manualSpinBtn.querySelector('.btn-text').textContent = '🎰 SPINNING...';
 }
 
 function handleSpinResult(data) {
@@ -240,8 +241,6 @@ function handleSpinComplete(data) {
     console.log('[App] Spin complete');
 
     elements.wheelContainer.classList.remove('spinning');
-    elements.manualSpinBtn.disabled = false;
-    elements.manualSpinBtn.querySelector('.btn-text').textContent = '⚡ FORCE SPIN';
 
     if (data.history) {
         updateHistory(data.history);
@@ -254,6 +253,15 @@ function handleSpinComplete(data) {
     // Update winner modal with distribution info if available
     if (data.distribution && data.distribution.distributed > 0) {
         updateWinnerWithDistribution(data.distribution);
+        // Update total fees sent
+        totalFeesSent += data.distribution.distributed;
+        updateTotalFeesSent();
+    }
+}
+
+function updateTotalFeesSent() {
+    if (elements.totalFeesSent) {
+        elements.totalFeesSent.textContent = `${totalFeesSent.toFixed(4)} SOL`;
     }
 }
 
@@ -457,28 +465,6 @@ async function fetchStatus() {
     }
 }
 
-async function triggerManualSpin() {
-    try {
-        elements.manualSpinBtn.disabled = true;
-
-        const response = await fetch(`${API_BASE}/api/spin`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            showToast(data.error || 'Spin failed');
-            elements.manualSpinBtn.disabled = false;
-        }
-    } catch (error) {
-        console.error('[App] Error triggering spin:', error);
-        showToast('Error triggering spin');
-        elements.manualSpinBtn.disabled = false;
-    }
-}
-
 // Event listeners
 function setupEventListeners() {
     // Copy button
@@ -491,9 +477,6 @@ function setupEventListeners() {
         });
     });
 
-    // Manual spin button
-    elements.manualSpinBtn.addEventListener('click', triggerManualSpin);
-
     // Close winner announcement
     elements.closeWinner.addEventListener('click', () => {
         closeWinnerAnnouncement();
@@ -503,14 +486,6 @@ function setupEventListeners() {
     elements.winnerAnnouncement.addEventListener('click', (e) => {
         if (e.target === elements.winnerAnnouncement) {
             closeWinnerAnnouncement();
-        }
-    });
-
-    // Keyboard shortcut for spin
-    document.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && !elements.manualSpinBtn.disabled) {
-            e.preventDefault();
-            triggerManualSpin();
         }
     });
 }

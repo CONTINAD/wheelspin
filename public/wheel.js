@@ -79,11 +79,17 @@ class SpinningWheel {
         ctx.rotate(this.currentRotation);
         ctx.translate(-centerX, -centerY);
 
+        // Calculate total percentage to normalize (segments should fill 100% of wheel)
+        const totalPercentage = this.segments.reduce((sum, seg) => sum + seg.percentage, 0);
+        const normalizer = 100 / totalPercentage; // This makes segments fill entire wheel
+
         let startAngle = -Math.PI / 2;
 
         // Draw segments
         this.segments.forEach((segment, index) => {
-            const sliceAngle = (segment.percentage / 100) * 2 * Math.PI;
+            // Normalize the percentage so all segments together fill the wheel
+            const normalizedPercentage = segment.percentage * normalizer;
+            const sliceAngle = (normalizedPercentage / 100) * 2 * Math.PI;
             const endAngle = startAngle + sliceAngle;
 
             // Draw segment
