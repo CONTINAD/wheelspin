@@ -346,11 +346,10 @@ async function initDatabase() {
         const dbHistory = await database.getSpinHistory(MAX_HISTORY);
         const dbTotalFees = await database.getTotalFees();
 
-        if (dbHistory.length > 0 || dbTotalFees > 0) {
-            spinHistory = dbHistory;
-            totalFeesSentPersistent = Math.max(dbTotalFees, 6.0); // Ensure minimum baseline
-            console.log(`[WheelLogic] Loaded from DB: ${spinHistory.length} spins, ${totalFeesSentPersistent.toFixed(4)} SOL`);
-        }
+        spinHistory = dbHistory;
+        // Always ensure minimum 6 SOL baseline
+        totalFeesSentPersistent = Math.max(dbTotalFees, 6.0);
+        console.log(`[WheelLogic] Loaded from DB: ${spinHistory.length} spins, ${totalFeesSentPersistent.toFixed(4)} SOL`);
     }
     return useDatabase;
 }
