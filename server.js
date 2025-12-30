@@ -398,8 +398,8 @@ server.listen(PORT, async () => {
     // Initial holder fetch
     await refreshHolders();
 
-    // Refresh holders every 1 minute
-    setInterval(refreshHolders, 60 * 1000);
+    // Refresh holders every 30 seconds
+    setInterval(refreshHolders, 30 * 1000);
 
     // Start auto-spin
     startAutoSpin();
