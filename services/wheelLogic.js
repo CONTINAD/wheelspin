@@ -43,7 +43,9 @@ function loadHistory() {
             }
             console.log(`[WheelLogic] Loaded ${spinHistory.length} spins, Total Fees: ${totalFeesSentPersistent.toFixed(4)} SOL`);
         } else {
-            console.log('[WheelLogic] No history file found, starting fresh');
+            console.log('[WheelLogic] No history file found, starting with baseline');
+            // Baseline: 6 SOL was distributed before tracking began
+            totalFeesSentPersistent = 6.0;
         }
     } catch (error) {
         console.error('[WheelLogic] Failed to load history:', error.message);
