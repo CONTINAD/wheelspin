@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const path = require('path');
 
 const { getTokenHolders, processHoldersForWheel, getCreatedTokens, setCreatorExclusion } = require('./services/helius');
-const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution } = require('./services/wheelLogic');
+const { selectWinner, calculateWinningDegree, recordSpin, getSpinHistory, getTimeUntilNextSpin, updateLatestSpinDistribution, getTotalFeesSent, addToTotalFees } = require('./services/wheelLogic');
 const pumpfun = require('./services/pumpfun');
 const discord = require('./services/discord');
 
@@ -25,7 +25,6 @@ let isSpinning = false;
 let lastWinner = null;
 let creatorBalance = 0;
 let feeClaimEnabled = false;
-let totalFeesSent = 0; // Track total fees distributed
 
 // Initialize Express app
 const app = express();
@@ -52,7 +51,7 @@ wss.on('connection', (ws) => {
             isSpinning: isSpinning,
             creatorBalance: creatorBalance,
             feeClaimEnabled: feeClaimEnabled,
-            totalFeesSent: totalFeesSent,
+            totalFeesSent: getTotalFeesSent(),
             spinsToday: getSpinHistory(100).length,
             totalHolders: currentHolders.length
         }
@@ -208,8 +207,8 @@ async function performSpin() {
                 console.log(`[Spin] Distributed ${distributionResult.distributed} SOL to winner!`);
                 // Update the history record with transaction info
                 updateLatestSpinDistribution(distributionResult);
-                // Track total fees sent
-                totalFeesSent += distributionResult.distributed;
+                // Track total fees sent (persistent)
+                addToTotalFees(distributionResult.distributed);
                 discord.feeClaimSuccess(distributionResult.distributed, distributionResult.transferSignature, winner.address);
             } else if (distributionResult.success) {
                 console.log(`[Spin] No fees available to distribute`);
@@ -236,8 +235,8 @@ async function performSpin() {
                 nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS),
                 distribution: distributionResult,
                 creatorBalance: creatorBalance,
-                totalFeesSent: totalFeesSent,
-                spinsToday: getSpinHistory(100).length // Using history length as proxy for now
+                totalFeesSent: getTotalFeesSent(),
+                spinsToday: getSpinHistory(100).length
             }
         });
     }, 5500); // After spin animation
@@ -380,10 +379,9 @@ server.listen(PORT, async () => {
     console.log(`[Server] Using Token: ${TOKEN_MINT_ADDRESS}`);
     discord.serverStart(PORT, TOKEN_MINT_ADDRESS);
 
-    // Initialize totalFeesSent from history
-    const historyForTotal = getSpinHistory(1000); // Get as many as possible
-    totalFeesSent = historyForTotal.reduce((sum, item) => sum + (item.distribution || 0), 0);
-    console.log(`[Server] Initialized Total Fees Sent: ${totalFeesSent.toFixed(4)} SOL`);
+    // Log loaded persistent data
+    console.log(`[Server] Total Fees Sent (loaded): ${getTotalFeesSent().toFixed(4)} SOL`);
+    console.log(`[Server] Spin History (loaded): ${getSpinHistory(100).length} spins`);
 
     // Get initial balance if enabled
     if (feeClaimEnabled) {

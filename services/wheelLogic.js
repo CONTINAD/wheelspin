@@ -2,24 +2,48 @@ const fs = require('fs');
 const path = require('path');
 
 // Persistence configuration
-const DATA_PATH = path.join(__dirname, '../data/history.json');
+const DATA_DIR = path.join(__dirname, '../data');
+const DATA_PATH = path.join(DATA_DIR, 'history.json');
 
 // Store spin history
 let spinHistory = [];
+let totalFeesSentPersistent = 0; // Track total fees persistently
 const MAX_HISTORY = 50;
 
 // Recent winners cooldown (can't win for next N spins)
 const recentWinners = [];
 const WINNER_COOLDOWN_SPINS = 2;
 
+// Ensure data directory exists
+function ensureDataDir() {
+    try {
+        if (!fs.existsSync(DATA_DIR)) {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            console.log('[WheelLogic] Created data directory');
+        }
+    } catch (error) {
+        console.error('[WheelLogic] Failed to create data directory:', error.message);
+    }
+}
+
 // Load history on startup
 function loadHistory() {
+    ensureDataDir();
     try {
         if (fs.existsSync(DATA_PATH)) {
             const data = fs.readFileSync(DATA_PATH, 'utf8');
             const parsed = JSON.parse(data);
-            spinHistory = parsed || [];
-            console.log(`[WheelLogic] Loaded ${spinHistory.length} spins from history`);
+            if (parsed && parsed.history) {
+                spinHistory = parsed.history || [];
+                totalFeesSentPersistent = parsed.totalFeesSent || 0;
+            } else if (Array.isArray(parsed)) {
+                // Legacy format - just array
+                spinHistory = parsed;
+                totalFeesSentPersistent = spinHistory.reduce((sum, item) => sum + (item.distribution || 0), 0);
+            }
+            console.log(`[WheelLogic] Loaded ${spinHistory.length} spins, Total Fees: ${totalFeesSentPersistent.toFixed(4)} SOL`);
+        } else {
+            console.log('[WheelLogic] No history file found, starting fresh');
         }
     } catch (error) {
         console.error('[WheelLogic] Failed to load history:', error.message);
@@ -27,15 +51,32 @@ function loadHistory() {
 }
 
 function saveHistory() {
+    ensureDataDir();
     try {
-        fs.writeFileSync(DATA_PATH, JSON.stringify(spinHistory, null, 2));
+        const data = {
+            history: spinHistory,
+            totalFeesSent: totalFeesSentPersistent,
+            lastUpdated: new Date().toISOString()
+        };
+        fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+        console.log(`[WheelLogic] Saved ${spinHistory.length} spins to disk`);
     } catch (error) {
         console.error('[WheelLogic] Failed to save history:', error.message);
     }
 }
 
+function getTotalFeesSent() {
+    return totalFeesSentPersistent;
+}
+
+function addToTotalFees(amount) {
+    totalFeesSentPersistent += amount;
+    saveHistory();
+}
+
 // Initial load
 loadHistory();
+
 
 
 /**
@@ -212,5 +253,7 @@ module.exports = {
     recordSpin,
     getSpinHistory,
     getTimeUntilNextSpin,
-    updateLatestSpinDistribution
+    updateLatestSpinDistribution,
+    getTotalFeesSent,
+    addToTotalFees
 };
