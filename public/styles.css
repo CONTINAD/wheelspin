@@ -232,6 +232,22 @@ body {
     box-shadow: 0 0 25px var(--green-glow);
 }
 
+.clickable-ca {
+    cursor: pointer;
+    border-color: var(--cyan);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+}
+
+.clickable-ca:hover {
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+    border-color: #00ffff;
+}
+
+.clickable-ca:active {
+    transform: translateY(0) scale(0.98);
+}
+
+
 .pulse-glow {
     animation: none;
 }

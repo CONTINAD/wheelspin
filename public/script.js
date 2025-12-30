@@ -36,6 +36,8 @@ const elements = {
     winnerAddress: document.getElementById('winnerAddress'),
     winnerAmount: document.getElementById('winnerAmount'),
     tokenAddress: document.getElementById('tokenAddress'),
+    headerTokenAddress: document.getElementById('headerTokenAddress'),
+    headerCaItem: document.getElementById('headerCaItem'),
     copyBtn: document.getElementById('copyBtn'),
     closeWinner: document.getElementById('closeWinner'),
     wheelContainer: document.getElementById('wheelContainer'),
@@ -467,6 +469,11 @@ async function fetchStatus() {
             if (data.tokenMint && data.tokenMint !== 'YOUR_TOKEN_MINT_ADDRESS_HERE') {
                 elements.tokenAddress.textContent = truncateAddress(data.tokenMint);
                 elements.tokenAddress.dataset.fullAddress = data.tokenMint;
+
+                if (elements.headerTokenAddress) {
+                    elements.headerTokenAddress.textContent = truncateAddress(data.tokenMint);
+                    elements.headerTokenAddress.dataset.fullAddress = data.tokenMint;
+                }
             } else {
                 elements.tokenAddress.textContent = 'Configure token address';
             }
@@ -480,15 +487,25 @@ async function fetchStatus() {
 
 // Event listeners
 function setupEventListeners() {
-    // Copy button
-    elements.copyBtn.addEventListener('click', () => {
+    // Copy function
+    const copyCa = () => {
         const address = elements.tokenAddress.dataset.fullAddress || elements.tokenAddress.textContent;
-        navigator.clipboard.writeText(address).then(() => {
-            showToast('✓ Address copied!');
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-        });
-    });
+        if (address && address !== 'Configure token address' && address !== 'Loading...') {
+            navigator.clipboard.writeText(address).then(() => {
+                showToast('✓ Address copied!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+    };
+
+    // Copy button
+    elements.copyBtn.addEventListener('click', copyCa);
+
+    // Header CA item
+    if (elements.headerCaItem) {
+        elements.headerCaItem.addEventListener('click', copyCa);
+    }
 
     // Close winner announcement
     elements.closeWinner.addEventListener('click', () => {
