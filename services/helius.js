@@ -123,12 +123,15 @@ function processHoldersForWheel(holders) {
         return { segments: [], totalSupply: 0 };
     }
 
-    // Calculate total supply held by eligible holders (excluding DEX/LP)
-    const totalSupply = eligibleHolders.reduce((sum, h) => sum + h.amount, 0);
+    // Calculate TOTAL supply (all holders including DEX) for percentage display
+    const absoluteTotalSupply = holders.reduce((sum, h) => sum + h.amount, 0);
 
-    // Create segments with percentages
+    // Calculate eligible supply (for wheel weighting)
+    const eligibleSupply = eligibleHolders.reduce((sum, h) => sum + h.amount, 0);
+
+    // Create segments with percentages based on TOTAL supply
     const segments = eligibleHolders.map((holder, index) => {
-        const percentage = (holder.amount / totalSupply) * 100;
+        const percentage = (holder.amount / absoluteTotalSupply) * 100;
         return {
             id: index,
             address: holder.owner,
@@ -139,7 +142,7 @@ function processHoldersForWheel(holders) {
         };
     });
 
-    return { segments, totalSupply };
+    return { segments, totalSupply: absoluteTotalSupply };
 }
 
 /**
