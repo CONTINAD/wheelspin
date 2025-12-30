@@ -4,8 +4,61 @@
  */
 
 const { Connection, Keypair, PublicKey, VersionedTransaction, LAMPORTS_PER_SOL, SystemProgram, Transaction, sendAndConfirmTransaction } = require('@solana/web3.js');
-const bs58 = require('bs58');
 const fetch = require('node-fetch');
+
+// Handle bs58 package version differences
+let bs58Decode;
+try {
+    const bs58 = require('bs58');
+    // Check if it's the new version (default export is the object with decode)
+    if (typeof bs58.decode === 'function') {
+        bs58Decode = bs58.decode;
+    } else if (typeof bs58.default?.decode === 'function') {
+        bs58Decode = bs58.default.decode;
+    } else if (typeof bs58 === 'function') {
+        // Very old version
+        bs58Decode = bs58;
+    } else {
+        // Fallback - try to decode manually or throw
+        throw new Error('Unsupported bs58 version');
+    }
+} catch (e) {
+    console.error('[PumpFun] bs58 import error:', e.message);
+    // Provide fallback using Buffer
+    bs58Decode = (str) => {
+        const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        const ALPHABET_MAP = {};
+        for (let i = 0; i < ALPHABET.length; i++) {
+            ALPHABET_MAP[ALPHABET.charAt(i)] = i;
+        }
+
+        if (str.length === 0) return new Uint8Array(0);
+
+        const bytes = [0];
+        for (let i = 0; i < str.length; i++) {
+            const c = str[i];
+            if (!(c in ALPHABET_MAP)) throw new Error('Invalid base58 character');
+
+            let carry = ALPHABET_MAP[c];
+            for (let j = 0; j < bytes.length; j++) {
+                carry += bytes[j] * 58;
+                bytes[j] = carry & 0xff;
+                carry >>= 8;
+            }
+            while (carry > 0) {
+                bytes.push(carry & 0xff);
+                carry >>= 8;
+            }
+        }
+
+        for (let i = 0; i < str.length && str[i] === '1'; i++) {
+            bytes.push(0);
+        }
+
+        return new Uint8Array(bytes.reverse());
+    };
+}
+
 
 // Configuration from environment
 let connection = null;
@@ -18,7 +71,7 @@ let isConfigured = false;
 function initialize(privateKey, rpcEndpoint) {
     try {
         // Decode private key from base58
-        const secretKey = bs58.decode(privateKey);
+        const secretKey = bs58Decode(privateKey);
         creatorKeypair = Keypair.fromSecretKey(secretKey);
 
         // Setup Solana connection
