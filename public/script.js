@@ -189,10 +189,10 @@ function handleInit(data) {
 
     if (data.history) {
         updateHistory(data.history);
-        spinsToday = data.history.length;
+        spinsToday = data.spinsToday || data.history.length;
         updateSpinsToday();
-        // Calculate total fees from history
-        totalFeesSent = data.history.reduce((sum, item) => sum + (item.distribution || 0), 0);
+        // Use server-provided total fees if available, otherwise fallback to history sum
+        totalFeesSent = data.totalFeesSent !== undefined ? data.totalFeesSent : data.history.reduce((sum, item) => sum + (item.distribution || 0), 0);
         updateTotalFeesSent();
     }
 
@@ -253,9 +253,18 @@ function handleSpinComplete(data) {
     // Update winner modal with distribution info if available
     if (data.distribution && data.distribution.distributed > 0) {
         updateWinnerWithDistribution(data.distribution);
-        // Update total fees sent
-        totalFeesSent += data.distribution.distributed;
+    }
+
+    // Update total fees sent from server data
+    if (data.totalFeesSent !== undefined) {
+        totalFeesSent = data.totalFeesSent;
         updateTotalFeesSent();
+    }
+
+    // Update spins today from server data
+    if (data.spinsToday !== undefined) {
+        spinsToday = data.spinsToday;
+        updateSpinsToday();
     }
 }
 

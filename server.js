@@ -52,7 +52,8 @@ wss.on('connection', (ws) => {
             isSpinning: isSpinning,
             creatorBalance: creatorBalance,
             feeClaimEnabled: feeClaimEnabled,
-            totalFeesSent: totalFeesSent
+            totalFeesSent: totalFeesSent,
+            spinsToday: getSpinHistory(100).length
         }
     }));
 
@@ -233,7 +234,9 @@ async function performSpin() {
                 history: getSpinHistory(10),
                 nextSpin: getTimeUntilNextSpin(lastSpinTime, SPIN_INTERVAL_MS),
                 distribution: distributionResult,
-                creatorBalance: creatorBalance
+                creatorBalance: creatorBalance,
+                totalFeesSent: totalFeesSent,
+                spinsToday: getSpinHistory(100).length // Using history length as proxy for now
             }
         });
     }, 5500); // After spin animation
