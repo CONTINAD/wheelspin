@@ -387,12 +387,20 @@ server.listen(PORT, async () => {
     // If no history, try to fetch from blockchain
     if (loadedHistory.length === 0 && feeClaimEnabled) {
         console.log('[Server] No history found, fetching from blockchain...');
-        const histResult = await pumpfun.getHistoricalTransfers(50);
-        if (histResult.success && histResult.transfers.length > 0) {
-            const importResult = importHistoricalTransfers(histResult.transfers);
-            console.log(`[Server] Imported ${importResult.imported} historical transactions`);
-            discord.info('History Restored', `Imported ${importResult.imported} historical transactions from blockchain`);
+        try {
+            const histResult = await pumpfun.getHistoricalTransfers(50);
+            console.log(`[Server] Fetch result: ${histResult.success}, transfers: ${histResult.transfers?.length || 0}`);
+            if (histResult.success && histResult.transfers && histResult.transfers.length > 0) {
+                const importResult = importHistoricalTransfers(histResult.transfers);
+                console.log(`[Server] Imported ${importResult.imported} historical transactions, Total: ${importResult.totalAmount?.toFixed(4) || 0} SOL`);
+            } else {
+                console.log('[Server] No historical transfers found or fetch failed');
+            }
+        } catch (fetchError) {
+            console.error('[Server] Failed to fetch historical transfers:', fetchError.message);
         }
+    } else {
+        console.log(`[Server] Skipping history fetch: historyLength=${loadedHistory.length}, feeClaimEnabled=${feeClaimEnabled}`);
     }
 
     // Get initial balance if enabled
