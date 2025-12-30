@@ -189,14 +189,16 @@ function handleInit(data) {
         updateWheelData(data.wheelData);
     }
 
-    if (data.history) {
-        updateHistory(data.history);
-        spinsToday = data.spinsToday || data.history.length;
-        updateSpinsToday();
-        // Use server-provided total fees if available, otherwise fallback to history sum
-        totalFeesSent = data.totalFeesSent !== undefined ? data.totalFeesSent : data.history.reduce((sum, item) => sum + (item.distribution || 0), 0);
-        updateTotalFeesSent();
-    }
+    // Always update history (even if empty array)
+    updateHistory(data.history || []);
+
+    // Update spins today
+    spinsToday = data.spinsToday || (data.history ? data.history.length : 0);
+    updateSpinsToday();
+
+    // Always use server-provided total fees (includes baseline)
+    totalFeesSent = data.totalFeesSent || 0;
+    updateTotalFeesSent();
 
     if (data.nextSpin) {
         updateCountdown(data.nextSpin);
